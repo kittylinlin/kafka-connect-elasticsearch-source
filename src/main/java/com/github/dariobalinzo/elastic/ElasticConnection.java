@@ -18,6 +18,7 @@ package com.github.dariobalinzo.elastic;
 
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
+import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
@@ -27,6 +28,13 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.amazonaws.auth.AWS4Signer;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.http.AWSRequestSigningApacheInterceptor;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
@@ -48,7 +56,8 @@ public class ElasticConnection {
     private final String protocol;
     private final int port;
     private final SSLContext sslContext;
-    private final CredentialsProvider credentialsProvider;
+    private CredentialsProvider credentialsProvider;
+    private HttpRequestInterceptor httpRequestInterceptor;
 
     ElasticConnection(ElasticConnectionBuilder builder) {
         hosts = builder.hosts;
@@ -57,12 +66,31 @@ public class ElasticConnection {
 
         String user = builder.user;
         String pwd = builder.pwd;
-        if (user != null) {
+
+        String region = builder.region;
+        String accessKey = builder.accessKey;
+        String secretKey = builder.secretKey;
+
+        credentialsProvider = null;
+        httpRequestInterceptor = null;
+
+        if (region != null) {
+            AWS4Signer signer = new AWS4Signer();
+            signer.setServiceName("es");
+            signer.setRegionName(region);
+
+            AWSCredentialsProvider awsCredentialsProvider;
+            if (accessKey != null || secretKey != null) {
+                BasicAWSCredentials basicAWSCredential = new BasicAWSCredentials(accessKey, secretKey);
+                awsCredentialsProvider = new AWSStaticCredentialsProvider(basicAWSCredential);
+            } else {
+                awsCredentialsProvider = new DefaultAWSCredentialsProviderChain();
+            }
+            httpRequestInterceptor = new AWSRequestSigningApacheInterceptor("es", signer, awsCredentialsProvider);
+        } else if (user != null) {
             credentialsProvider = new BasicCredentialsProvider();
             credentialsProvider.setCredentials(AuthScope.ANY,
                     new UsernamePasswordCredentials(user, pwd));
-        } else {
-            credentialsProvider = null;
         }
 
         sslContext = builder.trustStorePath == null ? null :
@@ -86,7 +114,9 @@ public class ElasticConnection {
                 RestClient.builder(hostList)
                         .setHttpClientConfigCallback(
                                 httpClientBuilder -> {
-                                    if (credentialsProvider != null) {
+                                    if (httpRequestInterceptor != null) {
+                                        httpClientBuilder.addInterceptorLast(httpRequestInterceptor);
+                                    } else if (credentialsProvider != null) {
                                         httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
                                     }
                                     if (sslContext != null) {

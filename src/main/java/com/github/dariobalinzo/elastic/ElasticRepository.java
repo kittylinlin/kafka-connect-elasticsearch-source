@@ -18,10 +18,11 @@ package com.github.dariobalinzo.elastic;
 
 import com.github.dariobalinzo.elastic.response.Cursor;
 import com.github.dariobalinzo.elastic.response.PageResult;
+
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Response;
-import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.*;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.slf4j.Logger;
@@ -72,10 +73,20 @@ public final class ElasticRepository {
         this.secondaryCursorFieldJsonName = removeKeywordSuffix(secondaryCursorField);
     }
 
-    public PageResult searchAfter(String index, Cursor cursor) throws IOException, InterruptedException {
-        QueryBuilder queryBuilder = cursor.getPrimaryCursor() == null ?
-                matchAllQuery() :
-                buildGreaterThen(cursorField, cursor.getPrimaryCursor());
+    public PageResult searchAfter(String index, Cursor cursor, String matchPhraseField, String matchPhraseValue, Boolean isEqual) throws IOException, InterruptedException {
+        BoolQueryBuilder boolQueryBuilder = new BoolQueryBuilder();
+        if (matchPhraseField != null && matchPhraseValue != null) {
+            boolQueryBuilder.must(QueryBuilders.matchPhraseQuery(matchPhraseField, matchPhraseValue));
+        }
+
+        if (cursor.getPrimaryCursor() != null) {
+            boolQueryBuilder.must(buildGreaterThen(cursorField, cursor.getPrimaryCursor(), isEqual));
+        }
+
+        QueryBuilder queryBuilder = matchAllQuery();
+        if (boolQueryBuilder.hasClauses()) {
+            queryBuilder = boolQueryBuilder;
+        }
 
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
                 .query(queryBuilder)
@@ -109,14 +120,25 @@ public final class ElasticRepository {
                 }).collect(Collectors.toList());
     }
 
-    public PageResult searchAfterWithSecondarySort(String index, Cursor cursor) throws IOException, InterruptedException {
+    public PageResult searchAfterWithSecondarySort(String index, Cursor cursor, String matchPhraseField, String matchPhraseValue, Boolean isEqual) throws IOException, InterruptedException {
         Objects.requireNonNull(secondaryCursorField);
         String primaryCursor = cursor.getPrimaryCursor();
         String secondaryCursor = cursor.getSecondaryCursor();
         boolean noPrevCursor = primaryCursor == null && secondaryCursor == null;
 
-        QueryBuilder queryBuilder = noPrevCursor ? matchAllQuery() :
-                getSecondarySortFieldQuery(primaryCursor, secondaryCursor);
+        BoolQueryBuilder boolQueryBuilder = new BoolQueryBuilder();
+        if (matchPhraseField != null && matchPhraseValue != null) {
+            boolQueryBuilder.must(QueryBuilders.matchPhraseQuery(matchPhraseField, matchPhraseValue));
+        }
+
+        if (!noPrevCursor) {
+            boolQueryBuilder.must(getSecondarySortFieldQuery(primaryCursor, secondaryCursor, isEqual));
+        }
+
+        QueryBuilder queryBuilder = matchAllQuery();
+        if (boolQueryBuilder.hasClauses()) {
+            queryBuilder = boolQueryBuilder;
+        }
 
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
                 .query(queryBuilder)
@@ -144,21 +166,21 @@ public final class ElasticRepository {
         return new PageResult(index, documents, lastCursor);
     }
 
-    private QueryBuilder buildGreaterThen(String cursorField, String cursorValue) {
-        return rangeQuery(cursorField).from(cursorValue, false);
+    private QueryBuilder buildGreaterThen(String cursorField, String cursorValue, Boolean isEqual) {
+        return rangeQuery(cursorField).from(cursorValue, isEqual);
     }
 
-    private QueryBuilder getSecondarySortFieldQuery(String primaryCursor, String secondaryCursor) {
+    private QueryBuilder getSecondarySortFieldQuery(String primaryCursor, String secondaryCursor, Boolean isEqual) {
         if (secondaryCursor == null) {
-            return buildGreaterThen(cursorField, primaryCursor);
+            return buildGreaterThen(cursorField, primaryCursor, isEqual);
         }
         return boolQuery()
                 .minimumShouldMatch(1)
-                .should(buildGreaterThen(cursorField, primaryCursor))
+                .should(buildGreaterThen(cursorField, primaryCursor, isEqual))
                 .should(
                         boolQuery()
                                 .filter(matchQuery(cursorField, primaryCursor))
-                                .filter(buildGreaterThen(secondaryCursorField, secondaryCursor))
+                                .filter(buildGreaterThen(secondaryCursorField, secondaryCursor, isEqual))
                 );
     }
 

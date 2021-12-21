@@ -39,13 +39,13 @@ public class ElasticRepositoryTest extends TestContainersContext {
         insertMockData(114);
         refreshIndex();
 
-        PageResult firstPage = repository.searchAfter(TEST_INDEX, Cursor.empty());
+        PageResult firstPage = repository.searchAfter(TEST_INDEX, Cursor.empty(), null, null, false);
         assertEquals(3, firstPage.getDocuments().size());
 
-        PageResult secondPage = repository.searchAfter(TEST_INDEX, firstPage.getLastCursor());
+        PageResult secondPage = repository.searchAfter(TEST_INDEX, firstPage.getLastCursor(), null, null, false);
         assertEquals(1, secondPage.getDocuments().size());
 
-        PageResult emptyPage = repository.searchAfter(TEST_INDEX, secondPage.getLastCursor());
+        PageResult emptyPage = repository.searchAfter(TEST_INDEX, secondPage.getLastCursor(), null, null, false);
         assertEquals(0, emptyPage.getDocuments().size());
         assertNull(emptyPage.getLastCursor().getPrimaryCursor());
 
@@ -78,16 +78,16 @@ public class ElasticRepositoryTest extends TestContainersContext {
 
         refreshIndex();
 
-        PageResult firstPage = secondarySortRepo.searchAfterWithSecondarySort(TEST_INDEX, Cursor.empty());
+        PageResult firstPage = secondarySortRepo.searchAfterWithSecondarySort(TEST_INDEX, Cursor.empty(), null, null, false);
         assertEquals(3, firstPage.getDocuments().size());
 
-        PageResult secondPage = secondarySortRepo.searchAfterWithSecondarySort(TEST_INDEX, firstPage.getLastCursor());
+        PageResult secondPage = secondarySortRepo.searchAfterWithSecondarySort(TEST_INDEX, firstPage.getLastCursor(), null, null, false);
         assertEquals(3, secondPage.getDocuments().size());
 
-        PageResult thirdPage = secondarySortRepo.searchAfterWithSecondarySort(TEST_INDEX, secondPage.getLastCursor());
+        PageResult thirdPage = secondarySortRepo.searchAfterWithSecondarySort(TEST_INDEX, secondPage.getLastCursor(), null, null, false);
         assertEquals(2, thirdPage.getDocuments().size());
 
-        PageResult emptyPage = secondarySortRepo.searchAfterWithSecondarySort(TEST_INDEX, thirdPage.getLastCursor());
+        PageResult emptyPage = secondarySortRepo.searchAfterWithSecondarySort(TEST_INDEX, thirdPage.getLastCursor(), null, null, false);
         assertEquals(0, emptyPage.getDocuments().size());
         assertNull(emptyPage.getLastCursor().getPrimaryCursor());
         assertNull(emptyPage.getLastCursor().getSecondaryCursor());
@@ -101,7 +101,7 @@ public class ElasticRepositoryTest extends TestContainersContext {
         insertMockData(111, "customerB", TEST_INDEX);
         refreshIndex();
 
-        PageResult firstPage = repository.searchAfter(TEST_INDEX, Cursor.empty());
+        PageResult firstPage = repository.searchAfter(TEST_INDEX, Cursor.empty(), null, null, false);
         firstPage.getDocuments().forEach(item -> {
             assertNotNull(item.get((String) "es-index"));
             assertNotNull(item.get((String) "es-id"));

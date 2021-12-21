@@ -66,6 +66,10 @@ public class ElasticSourceConnector extends SourceConnector {
         String esUser = config.getString(ElasticSourceConnectorConfig.ES_USER_CONF);
         String esPwd = config.getString(ElasticSourceConnectorConfig.ES_PWD_CONF);
 
+        String esAWSRegion = config.getString(ElasticSourceConnectorConfig.ES_AWS_REGION_CONF);
+        String esAWSAccessKey = config.getString(ElasticSourceConnectorConfig.ES_AWS_ACCESS_KEY_CONF);
+        String esAWSSecretKey = config.getString(ElasticSourceConnectorConfig.ES_AWS_SECRET_KEY_CONF);
+
         int maxConnectionAttempts = Integer.parseInt(config.getString(
                 ElasticSourceConnectorConfig.CONNECTION_ATTEMPTS_CONFIG
         ));
@@ -91,7 +95,10 @@ public class ElasticSourceConnector extends SourceConnector {
             connectionBuilder.withKeyStore(keystore, keystorePass);
         }
 
-        if (esUser == null || esUser.isEmpty()) {
+        if (esAWSRegion != null) {
+            elasticConnection = connectionBuilder.withAWSAuth(esAWSRegion, esAWSAccessKey, esAWSSecretKey)
+                    .build();
+        } else if (esUser == null || esUser.isEmpty()) {
             elasticConnection = connectionBuilder.build();
         } else {
             elasticConnection = connectionBuilder.withUser(esUser)

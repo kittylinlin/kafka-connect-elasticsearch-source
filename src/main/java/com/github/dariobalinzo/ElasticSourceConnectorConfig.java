@@ -50,6 +50,18 @@ public class ElasticSourceConnectorConfig extends AbstractConfig {
     private final static String ES_PWD_DOC = "Elasticsearch password";
     private final static String ES_PWD_DISPLAY = "Elasticsearch password";
 
+    public final static String ES_AWS_REGION_CONF = "es.aws.region";
+    private final static String ES_AWS_REGION_DOC = "The region of elasticsearch hosted by AWS";
+    private final static String ES_AWS_REGION_DISPLAY = "The region of elasticsearch hosted by AWS.";
+
+    public final static String ES_AWS_ACCESS_KEY_CONF = "es.aws.access_key";
+    private final static String ES_AWS_ACCESS_KEY_DOC = "The access key of elasticsearch hosted by AWS";
+    private final static String ES_AWS_ACCESS_KEY_DISPLAY = "The access key of elasticsearch hosted by AWS.";
+
+    public final static String ES_AWS_SECRET_KEY_CONF = "es.aws.secret_key";
+    private final static String ES_AWS_SECRET_KEY_DOC = "The secret key of elasticsearch hosted by AWS";
+    private final static String ES_AWS_SECRET_KEY_DISPLAY = "The secret key of elasticsearch hosted by AWS.";
+
     public final static String ES_KEYSTORE_CONF = "es.tls.keystore.location";
     private final static String ES_KEYSTORE_DOC = "Elasticsearch keystore location";
 
@@ -99,11 +111,25 @@ public class ElasticSourceConnectorConfig extends AbstractConfig {
     private static final String INCREMENTING_FIELD_NAME_DEFAULT = "";
     private static final String INCREMENTING_FIELD_NAME_DISPLAY = "Incrementing Field Name";
 
+    public static final String MATCH_PHRASE_FIELD_NAME_CONFIG = "match_phrase.field.name";
+    private static final String MATCH_PHRASE_FIELD_NAME_DOC =
+            "The name of the match_phrase field to use to filter records.";
+    private static final String MATCH_PHRASE_FIELD_NAME_DISPLAY = "The name of the match_phrase field to use to filter records";
+
+    public static final String MATCH_PHRASE_FIELD_VALUE_CONFIG = "match_phrase.field.value";
+    private static final String MATCH_PHRASE_FIELD_VALUE_DOC =
+            "The value of the match_phrase field to use to filter records.";
+    private static final String MATCH_PHRASE_FIELD_VALUE_DISPLAY = "The value of the match_phrase field to use to filter records";
+
     public static final String SECONDARY_INCREMENTING_FIELD_NAME_CONFIG = "incrementing.secondary.field.name";
     private static final String SECONDARY_INCREMENTING_FIELD_NAME_DOC =
             "In case the main incrementing field may have duplicates, this secondary field is used as a secondary sort field" +
                     " in order to avoid data losses when paginating";
     private static final String SECONDARY_INCREMENTING_FIELD_NAME_DISPLAY = "Secondary Incrementing Field Name";
+
+    public static final String INCREMENTING_IS_EQUAL_CONFIG = "incrementing.is_equal";
+    private static final String INCREMENTING_IS_EQUAL_DOC = "Is include the lower bound of the incrementing field";
+    private static final String INCREMENTING_IS_EQUAL_DISPLAY = "Is include the lower bound of the incrementing field";
 
     public static final String INDEX_PREFIX_CONFIG = "index.prefix";
     private static final String INDEX_PREFIX_DOC = "List of indices to include in copying.";
@@ -142,6 +168,14 @@ public class ElasticSourceConnectorConfig extends AbstractConfig {
     public static final String FIELDS_JSON_CAST_CONFIG = "filters.json_cast";
     private static final String FIELDS_JSON_CAST_DOC = "Cast to json string instead of parsing nested objects (e.g. order.qty;order.price;status )";
     private static final String FIELDS_JSON_CAST_DISPLAY = "Cast to json string";
+
+    public static final String FIELDS_MAP_CAST_CONFIG = "filters.map_cast";
+    private static final String FIELDS_MAP_CAST_DOC = "Cast to map instead of parsing json string (e.g. order.qty;order.price;status )";
+    private static final String FIELDS_MAP_CAST_DISPLAY = "Cast to map";
+
+    public static final String KEY_FIELD_CONFIG = "key.field";
+    private static final String KEY_FIELD_DOC = "Select a field as the key";
+    private static final String KEY_FIELD_DISPLAY = "Key field";
 
     public static final String CONNECTOR_FIELDNAME_CONVERTER_CONFIG = "fieldname_converter";
     public static final String CONNECTOR_FIELDNAME_CONVERTER_DOC = "Determine which name converter should be used for document fields: avro converter as standard";
@@ -212,6 +246,36 @@ public class ElasticSourceConnectorConfig extends AbstractConfig {
                 ++orderInGroup,
                 Width.SHORT,
                 ES_PWD_DISPLAY
+        ).define(
+                ES_AWS_REGION_CONF,
+                Type.STRING,
+                null,
+                Importance.LOW,
+                ES_AWS_REGION_DOC,
+                DATABASE_GROUP,
+                ++orderInGroup,
+                Width.SHORT,
+                ES_AWS_REGION_DISPLAY
+        ).define(
+                ES_AWS_ACCESS_KEY_CONF,
+                Type.STRING,
+                null,
+                Importance.HIGH,
+                ES_AWS_ACCESS_KEY_DOC,
+                DATABASE_GROUP,
+                ++orderInGroup,
+                Width.LONG,
+                ES_AWS_ACCESS_KEY_DISPLAY
+        ).define(
+                ES_AWS_SECRET_KEY_CONF,
+                Type.STRING,
+                null,
+                Importance.HIGH,
+                ES_AWS_SECRET_KEY_DOC,
+                DATABASE_GROUP,
+                ++orderInGroup,
+                Width.LONG,
+                ES_AWS_SECRET_KEY_DISPLAY
         ).define(
                 ES_KEYSTORE_CONF,
                 Type.STRING,
@@ -317,11 +381,51 @@ public class ElasticSourceConnectorConfig extends AbstractConfig {
                 Type.STRING,
                 null,
                 Importance.MEDIUM,
-                FIELDS_WHITELIST_DOC,
+                FIELDS_JSON_CAST_DOC,
                 CONNECTOR_GROUP,
                 ++orderInGroup,
                 Width.MEDIUM,
                 FIELDS_JSON_CAST_DISPLAY
+        ).define(
+                FIELDS_MAP_CAST_CONFIG,
+                Type.STRING,
+                null,
+                Importance.MEDIUM,
+                FIELDS_MAP_CAST_DOC,
+                CONNECTOR_GROUP,
+                ++orderInGroup,
+                Width.MEDIUM,
+                FIELDS_MAP_CAST_DISPLAY
+        ).define(
+                MATCH_PHRASE_FIELD_NAME_CONFIG,
+                Type.STRING,
+                null,
+                Importance.LOW,
+                MATCH_PHRASE_FIELD_NAME_DOC,
+                CONNECTOR_GROUP,
+                ++orderInGroup,
+                Width.LONG,
+                MATCH_PHRASE_FIELD_NAME_DISPLAY
+        ).define(
+                MATCH_PHRASE_FIELD_VALUE_CONFIG,
+                Type.STRING,
+                null,
+                Importance.LOW,
+                MATCH_PHRASE_FIELD_VALUE_DOC,
+                CONNECTOR_GROUP,
+                ++orderInGroup,
+                Width.LONG,
+                MATCH_PHRASE_FIELD_VALUE_DISPLAY
+        ).define(
+                KEY_FIELD_CONFIG,
+                Type.STRING,
+                null,
+                Importance.LOW,
+                KEY_FIELD_DOC,
+                CONNECTOR_GROUP,
+                ++orderInGroup,
+                Width.LONG,
+                KEY_FIELD_DISPLAY
         );
     }
 
@@ -367,6 +471,16 @@ public class ElasticSourceConnectorConfig extends AbstractConfig {
                 ++orderInGroup,
                 Width.MEDIUM,
                 SECONDARY_INCREMENTING_FIELD_NAME_DISPLAY
+        ).define(
+                INCREMENTING_IS_EQUAL_CONFIG,
+                Type.BOOLEAN,
+                false,
+                Importance.LOW,
+                INCREMENTING_IS_EQUAL_DOC,
+                MODE_GROUP,
+                ++orderInGroup,
+                Width.NONE,
+                INCREMENTING_IS_EQUAL_DISPLAY
         );
     }
 

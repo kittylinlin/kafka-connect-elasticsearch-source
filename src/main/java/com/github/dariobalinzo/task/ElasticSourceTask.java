@@ -26,6 +26,7 @@ import com.github.dariobalinzo.elastic.response.PageResult;
 import com.github.dariobalinzo.filter.BlacklistFilter;
 import com.github.dariobalinzo.filter.DocumentFilter;
 import com.github.dariobalinzo.filter.JsonCastFilter;
+import com.github.dariobalinzo.filter.MapCastFilter;
 import com.github.dariobalinzo.filter.WhitelistFilter;
 import com.github.dariobalinzo.schema.*;
 import org.apache.kafka.common.config.ConfigException;
@@ -61,9 +62,13 @@ public class ElasticSourceTask extends SourceTask {
     private List<String> indices;
     private String topic;
     private String cursorField;
+    private String matchPhraseField;
+    private String matchPhraseValue;
     private String cursorFieldJsonName;
     private String secondaryCursorField;
     private String secondaryCursorFieldJsonName;
+    private Boolean incrementingIsEqual;
+    private String keyField;
     private int pollingMs;
     private final Map<String, Cursor> lastCursor = new HashMap<>();
     private final Map<String, Integer> sent = new HashMap<>();
@@ -92,12 +97,16 @@ public class ElasticSourceTask extends SourceTask {
 
         topic = config.getString(ElasticSourceConnectorConfig.TOPIC_PREFIX_CONFIG);
         cursorField = config.getString(ElasticSourceConnectorConfig.INCREMENTING_FIELD_NAME_CONFIG);
+        matchPhraseField = config.getString(ElasticSourceConnectorConfig.MATCH_PHRASE_FIELD_NAME_CONFIG);
+        matchPhraseValue = config.getString(ElasticSourceConnectorConfig.MATCH_PHRASE_FIELD_VALUE_CONFIG);
         Objects.requireNonNull(cursorField, ElasticSourceConnectorConfig.INCREMENTING_FIELD_NAME_CONFIG
                 + " conf is mandatory");
         cursorFieldJsonName = removeKeywordSuffix(cursorField);
         secondaryCursorField = config.getString(ElasticSourceConnectorConfig.SECONDARY_INCREMENTING_FIELD_NAME_CONFIG);
         secondaryCursorFieldJsonName = removeKeywordSuffix(secondaryCursorField);
         pollingMs = Integer.parseInt(config.getString(ElasticSourceConnectorConfig.POLL_INTERVAL_MS_CONFIG));
+        keyField = config.getString(ElasticSourceConnectorConfig.KEY_FIELD_CONFIG);
+        incrementingIsEqual = config.getBoolean(ElasticSourceConnectorConfig.INCREMENTING_IS_EQUAL_CONFIG);
 
         initConnectorFilters();
         initConnectorFieldConverter();
@@ -122,8 +131,15 @@ public class ElasticSourceTask extends SourceTask {
         String jsonCastFilters = config.getString(ElasticSourceConnectorConfig.FIELDS_JSON_CAST_CONFIG);
         if (jsonCastFilters != null) {
             String[] jsonCastFiltersArray = jsonCastFilters.split(";");
-            Set<String> whiteFiltersSet = new HashSet<>(Arrays.asList(jsonCastFiltersArray));
-            documentFilters.add(new JsonCastFilter(whiteFiltersSet));
+            Set<String> jsonCastFiltersSet = new HashSet<>(Arrays.asList(jsonCastFiltersArray));
+            documentFilters.add(new JsonCastFilter(jsonCastFiltersSet));
+        }
+
+        String mapCastFilters = config.getString(ElasticSourceConnectorConfig.FIELDS_MAP_CAST_CONFIG);
+        if (mapCastFilters != null) {
+            String[] mapCastFiltersArray = mapCastFilters.split(";");
+            Set<String> mapCastFiltersSet = new HashSet<>(Arrays.asList(mapCastFiltersArray));
+            documentFilters.add(new MapCastFilter(mapCastFiltersSet));
         }
     }
 
@@ -152,6 +168,10 @@ public class ElasticSourceTask extends SourceTask {
         String esUser = config.getString(ElasticSourceConnectorConfig.ES_USER_CONF);
         String esPwd = config.getString(ElasticSourceConnectorConfig.ES_PWD_CONF);
 
+        String esAWSRegion = config.getString(ElasticSourceConnectorConfig.ES_AWS_REGION_CONF);
+        String esAWSAccessKey = config.getString(ElasticSourceConnectorConfig.ES_AWS_ACCESS_KEY_CONF);
+        String esAWSSecretKey = config.getString(ElasticSourceConnectorConfig.ES_AWS_SECRET_KEY_CONF);
+
         int batchSize = Integer.parseInt(config.getString(ElasticSourceConnectorConfig.BATCH_MAX_ROWS_CONFIG));
 
         int maxConnectionAttempts = Integer.parseInt(config.getString(
@@ -178,7 +198,10 @@ public class ElasticSourceTask extends SourceTask {
             connectionBuilder.withKeyStore(keystore, keystorePass);
         }
 
-        if (esUser == null || esUser.isEmpty()) {
+        if (esAWSRegion != null) {
+            es = connectionBuilder.withAWSAuth(esAWSRegion, esAWSAccessKey, esAWSSecretKey)
+                    .build();
+        } else if (esUser == null || esUser.isEmpty()) {
             es = connectionBuilder.build();
         } else {
             es = connectionBuilder.withUser(esUser)
@@ -202,8 +225,8 @@ public class ElasticSourceTask extends SourceTask {
                     Cursor lastValue = fetchLastOffset(index);
                     logger.info("found last value {}", lastValue);
                     PageResult pageResult = secondaryCursorField == null ?
-                            elasticRepository.searchAfter(index, lastValue) :
-                            elasticRepository.searchAfterWithSecondarySort(index, lastValue);
+                            elasticRepository.searchAfter(index, lastValue, matchPhraseField, matchPhraseValue, incrementingIsEqual) :
+                            elasticRepository.searchAfterWithSecondarySort(index, lastValue, matchPhraseField, matchPhraseValue, incrementingIsEqual);
                     parseResult(pageResult, results);
                     logger.info("index {} total messages: {} ", index, sent.get(index));
                 }
@@ -245,12 +268,18 @@ public class ElasticSourceTask extends SourceTask {
                     secondaryCursorFieldJsonName,
                     elasticDocument
             );
-            String key = offsetSerializer.toStringOffset(
-                    cursorFieldJsonName,
-                    secondaryCursorFieldJsonName,
-                    index,
-                    elasticDocument
-            );
+
+            String key = "";
+            if (keyField != null) {
+                key = (String)elasticDocument.get(keyField);
+            } else {
+                key = offsetSerializer.toStringOffset(
+                        cursorFieldJsonName,
+                        secondaryCursorFieldJsonName,
+                        index,
+                        elasticDocument
+                );
+            }
 
             lastCursor.put(index, pageResult.getLastCursor());
             sent.merge(index, 1, Integer::sum);

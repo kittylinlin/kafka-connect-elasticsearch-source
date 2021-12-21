@@ -25,6 +25,9 @@ public class ElasticConnectionBuilder {
     long connectionRetryBackoff = 1_000;
     String user;
     String pwd;
+    String region;
+    String accessKey;
+    String secretKey;
 
     String trustStorePath;
     String trustStorePassword;
@@ -48,6 +51,13 @@ public class ElasticConnectionBuilder {
 
     public ElasticConnectionBuilder withPassword(String password) {
         this.pwd = password;
+        return this;
+    }
+
+    public ElasticConnectionBuilder withAWSAuth(String region, String accessKey, String secretKey) {
+        this.region = region;
+        this.accessKey = accessKey;
+        this.secretKey = secretKey;
         return this;
     }
 

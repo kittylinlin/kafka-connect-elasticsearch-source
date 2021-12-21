@@ -116,6 +116,39 @@ Elasticsearch password
 * Default: null
 * Importance: high
 
+``es.aws.region``
+The region of elasticsearch hosted by AWS.
+
+* Type: string
+* Default: null
+* Importance: high
+
+``es.aws.access_key``
+The access key of elasticsearch hosted by AWS.
+
+* Type: string
+* Default: null
+* Importance: high
+
+
+``es.aws.secret_key``
+The secret key of elasticsearch hosted by AWS.
+
+* Type: string
+* Default: null
+* Importance: high
+
+``match_phrase.field.name``
+The name of the match_phrase field to use to filter records.
+
+* Type: string
+* Importance: low
+
+``match_phrase.field.value``
+The value of the match_phrase field to use to filter records.
+
+* Type: string
+* Importance: low
 
 ``incrementing.field.name``
 The name of the strictly incrementing field to use to detect new records.
@@ -129,6 +162,12 @@ this secondary field is used as a secondary sort field in order
 to avoid data losses when paginating (available starting from versions >= 1.4).
 
 * Type: any
+* Importance: low
+
+``incrementing.is_equal``
+Is include the lower bound of the incrementing field
+
+* Type: boolean
 * Importance: low
 
 
@@ -233,6 +272,22 @@ filter supports nested fields. To provide multiple fields use `;` as separator
 
 * Type: string
 * Importance: medium
+* Default: null
+
+``filters.map_cast``
+This filter casts json string to map. The map_cast
+filter supports nested fields. To provide multiple fields use `;` as separator
+(e.g. `customer;order.qty;order.price`).
+
+* Type: string
+* Importance: medium
+* Default: null
+
+``key.field``
+Select a field as the key
+
+* Type: string
+* Importance: low
 * Default: null
 
 ``fieldname_converter``
